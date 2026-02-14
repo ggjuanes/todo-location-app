@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = 'https://geocode.maps.co/reverse';
+const API_KEY = process.env.EXPO_PUBLIC_GEOCODING_API_KEY;
 
 // Simple in-memory cache keyed by rounded coordinates
 const cache = new Map();
@@ -52,7 +53,7 @@ export const reverseGeocode = async (latitude, longitude) => {
       }
 
       const response = await axios.get(BASE_URL, {
-        params: { lat: latitude, lon: longitude },
+        params: { lat: latitude, lon: longitude, api_key: API_KEY },
         timeout: 10000,
       });
 
