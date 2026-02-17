@@ -1,5 +1,6 @@
 package com.example.locationtodoappkotlin.data.remote
 
+import com.example.locationtodoappkotlin.BuildConfig
 import com.example.locationtodoappkotlin.data.remote.model.GeocodeResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -12,9 +13,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlin.math.round
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 class GeocodingApi {
+
+    private val apiKey = BuildConfig.GEOCODE_API_KEY
 
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -32,6 +36,10 @@ class GeocodingApi {
     private var hasRequested = false
 
     suspend fun reverseGeocode(lat: Double, lon: Double): Result<String> {
+        if (apiKey.isBlank()) {
+            return Result.failure(IllegalStateException("GEOCODE_API_KEY not configured"))
+        }
+
         val key = "${round(lat * 1000) / 1000},${round(lon * 1000) / 1000}"
         cache[key]?.let { return Result.success(it) }
 
@@ -39,8 +47,8 @@ class GeocodingApi {
             rateLimitMutex.withLock {
                 if (hasRequested) {
                     val elapsed = lastRequestMark.elapsedNow()
-                    if (elapsed < kotlin.time.Duration.parse("1s")) {
-                        delay(kotlin.time.Duration.parse("1s") - elapsed)
+                    if (elapsed < 1.seconds) {
+                        delay(1.seconds - elapsed)
                     }
                 }
                 lastRequestMark = timeSource.markNow()
@@ -50,7 +58,7 @@ class GeocodingApi {
             val response: GeocodeResponse = client.get("https://geocode.maps.co/reverse") {
                 parameter("lat", lat)
                 parameter("lon", lon)
-                parameter("format", "json")
+                parameter("api_key", apiKey)
             }.body()
 
             val address = response.address
